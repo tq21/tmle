@@ -1,4 +1,14 @@
+Changes/Bug Fixes in Version 2.1.1
+-- Changes  to two default settings 
+	-- the targeting procedure now keeps g in the coveriate instead of using a weighted regression. To reproduce old behavior, set   targetg.Wt = FALSE. 
+	-- min.retain is now NULL by default, instead of 5.  Now, when prescreenW.g is TRUE, the minimum number of covariates to retain will be set internally based on the number of treatment events, unless the user passes in a fixed value.
+-- added option to skip evaluating ATT and ATC, allowing for faster targeted bootstrap 
+-- Now allow parametric model formula to be passed in with or without quotes
+-- Fixed bug in ATT / ATC estimation with repeated measures, and corrected variance estimation when observations are weighted.
+
+
 Changes/Bug Fixes in Version 2.0.1.1
+
  -- Fixed fatal bug when bootstrapping ATT and ATC and more than 5% of outcomes are missing
  -- And another bug when estimating Q with GLM, some missing outcomes, and cvQinit=FALSE
 

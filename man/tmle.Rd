@@ -15,8 +15,8 @@ tmle(Y, A, W, Z=NULL, Delta = rep(1,length(Y)), Q = NULL, Q.Z1 = NULL, Qform = N
      family = "gaussian", fluctuation = "logistic", alpha = 0.9995, id=1:length(Y), 
      V.Q = 10, V.g=10, V.Delta=10, V.Z = 10,
      verbose = FALSE, Q.discreteSL=FALSE, g.discreteSL=FALSE, g.Delta.discreteSL=FALSE,
-     prescreenW.g=TRUE, min.retain = 5, target.gwt = TRUE, automate=FALSE,
-     obsWeights = NULL, alpha.sig = 0.05, B = 1)
+     prescreenW.g=TRUE, min.retain = NULL, target.gwt = FALSE, automate=FALSE,
+     obsWeights = NULL, alpha.sig = 0.05, B = 1, evalATT = TRUE)
 }
 \arguments{
  \item{Y}{continuous or binary outcome variable}
@@ -52,13 +52,14 @@ tmle(Y, A, W, Z=NULL, Delta = rep(1,length(Y)), Q = NULL, Q.Z1 = NULL, Qform = N
   \item{g.discreteSL}{if TRUE, discreteSL is used instead of ensemble SL. Ignored when SL not used to estimate g1W} 
   \item{g.Delta.discreteSL}{if TRUE, discreteSL is used instead of ensemble SL. Ignored when SL not used to estimate P(Delta = 1 | A,W)} 
   \item{prescreenW.g}{Option to screen covariates before estimating g in order to retain only those associated with the outcome (Recommend FALSE in low dimensional datasets)}
-  \item{min.retain}{Minimum number of covariates to retain when prescreening covariates for g. Ignored when prescreenW.g=FALSE} 
-  \item{target.gwt}{When TRUE, move g from denominator of clever covariate to the weight when fitting epsilon}
+  \item{min.retain}{Minimum number of covariates to retain when prescreening covariates for g. \code{NULL} will set minimum number of covariates to retain for modeling treatment and missingness based on the number of treatment events.  Ignored when prescreenW.g=FALSE} 
+  \item{target.gwt}{When TRUE, move g from denominator of clever covariate to the weight when fitting epsilon. Default is FALSE.}
   \item{automate}{When TRUE, all tuning parameters are set to their default values. Number of cross validation folds, truncation level for g, and
 decision to prescreen covariates for modeling g are set data-adaptively based on sample size (see details).}
   \item{obsWeights}{Optional observation weights to account for biased sampling}
   \item{alpha.sig}{significance level for constructing \code{1-alpha.sig} confidence intervals}
   \item{B}{Number of boostrap iterations. Set \eqn{B>1} to obtain targeted bootstrap based inference in addition to IC-based inference (see Details).}
+  \item{evalATT}{Setting to FALSE speeds up computation by not evaluating the ATT and ATC parameters (useful when using the targeted bootstrap if neither of this are of interest).}
 }
 \details{
  \code{gbounds} Lower bound defaults to lb = \eqn{5/sqrt(n)/log(n)}. For treatment effect estimates and population mean outcome the upper bound defaults to 1. For ATT and ATC, the upper bound defaults to 1- lb.

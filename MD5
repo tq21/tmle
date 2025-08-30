@@ -1,9 +1,9 @@
-0844bf427d6cc1ff1cf343d889fa7bd5 *DESCRIPTION
+e45c8edf8c1d57e17e4d782915ada951 *DESCRIPTION
 6b915062c5be6a0e6869ac34d1eb1a36 *LICENSE
 37f83a088b59b87f438e94bd52911357 *NAMESPACE
-7722b5957692719fbb911a1c57d2df11 *NEWS
-f1074334361cb4a7e66649d8037cc0cd *R/tmle.R
-48e7eb57051574ad7d78bfbb1bed975a *R/zzz.R
+0dd43365f8ebf7b717490a0802b8dfed *NEWS
+b99f3913bfeef465f2f84d8206a8236f *R/tmle.R
+9504f92633c4ec9a40c689f6b4b48c4e *R/zzz.R
 15f4a3855f83833482d6d0062b11a95d *data/fev.rda
 5a9f52a1816fe98866419af16b235e7c *inst/CITATION
 b423defe865426b8f281463d75ecc549 *man/calcParameters.Rd
@@ -14,8 +14,8 @@ b423defe865426b8f281463d75ecc549 *man/calcParameters.Rd
 185c094dd0cffbc49a9c715498e38ed2 *man/oneStepATT.Rd
 a03ab0a0e8af230907b58e968b9fc8e1 *man/summary.tmle.Rd
 b394b833f5ab19d8973278ce87466724 *man/summary.tmleMSM.Rd
-45ea3f40eac6ccee4b414b3a9fa7559d *man/tmle-package.Rd
-14b3a8ddf39c83d5feb72f81fdb2e9cb *man/tmle.Rd
-d54a8e36cef3676ce55d4b0e72baf35d *man/tmle.Sl.dbarts2.Rd
+35150b6741b8228a0a292ebdbebf4054 *man/tmle-package.Rd
+a802121235341d737ec30a65ca4e5ff7 *man/tmle.Rd
+5418de01a6d225a8065939250be0e668 *man/tmle.Sl.dbarts2.Rd
 968186446080facaf482b0b56b9e992d *man/tmleMSM.Rd
-6600e6fc61a55a1b2d80a2db1e1bf166 *man/tmleNews.Rd
+86bc86dc114a004087b7dab0935075fc *man/tmleNews.Rd

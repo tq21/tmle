@@ -54,5 +54,5 @@ an object of type tmle.SL.dbarts2 used internally by \code{Super Learner}
 }
 \author{Chris Kennedy and Susan Gruber}
 \seealso{
-\code{\link{SuperLearner}}
+\code{\link[SuperLearner]{SuperLearner}}
 }

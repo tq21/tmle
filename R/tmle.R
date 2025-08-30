@@ -1,4 +1,4 @@
-# 2.0
+# 2.1.1
 tmleNews <- function(...){
 	RShowDoc("NEWS", package="tmle",...)
 }
@@ -1349,22 +1349,23 @@ estimateQ <- function (Y,Z,A,W, Delta, Q, Qbounds, Qform, maptoYstar,
 # min.retain = minimum number of of variables to retain
 #------------------------------------------------------
 .prescreenW.g <- function(Y, A, W, Delta, QAW, family, min.retain, obsWeights){  
-    if(NCOL(W) < min.retain){
-    	min.retain <- NCOL(W)
-    }
-    #require(glmnet)
-    
-    m.lasso <- cv.glmnet(W[Delta == 1,], Y[Delta == 1], family =  family,  weights = obsWeights[Delta == 1])
-	beta <- coef(m.lasso, s = m.lasso$lambda.min)[-1] # ignore the intercept
-	retain <- which(abs(beta) > 0)
-	if (length(retain) < min.retain ){
-		if (length(unique(A)) == 1){
-			retain <-  unique( c(retain, order(abs(cor(Delta, W)))[1:min.retain]))[1:min.retain]
-		} else {
-			retain <- unique( c(retain, order(abs(cor(A, W)))[1:min.retain]))[1:min.retain]
+    if(NCOL(W) <= min.retain){
+       	retain <- 1:NCOL(W)
+    } else {
+        m.lasso <- try(cv.glmnet(W[Delta == 1, , drop = FALSE], Y[Delta == 1], family =  family,  weights = obsWeights[Delta == 1]))
+   		if(!inherits(m.lasso, "try-error")){
+			beta <- coef(m.lasso, s = m.lasso$lambda.min)[-1] # ignore the intercept
+			retain <- which(abs(beta) > 0)
+			if (length(retain) < min.retain ){
+				if (length(unique(A)) == 1){
+					retain <-  unique( c(retain, order(abs(cor(Delta, W)))[1:min.retain]))[1:min.retain]
+				} else {
+					retain <- unique( c(retain, order(abs(cor(A, W)))[1:min.retain]))[1:min.retain]
+				}
+			}
 		}
-	} 
-	return(retain)
+  } 
+   return(retain)
 }
 
 #-----------estimateG----------------
@@ -1566,6 +1567,9 @@ calcParameters <- function(Y,A, I.Z, Delta, g1W, g0W, Q, mu1, mu0, id, family, o
 			}
 			EY1$var.psi <- var(IC.EY1)/n.id
 			EY1$CI <- c(EY1$psi -mult*sqrt(EY1$var.psi), EY1$psi +mult*sqrt(EY1$var.psi))
+			if(family == "binomial") {
+				EY1$CI <- .bound(EY1$CI, c(0,1))
+			}
 			EY1$pvalue <- 2*pnorm(-abs(EY1$psi/sqrt(EY1$var.psi)))
 		}
 	} else {
@@ -1577,6 +1581,9 @@ calcParameters <- function(Y,A, I.Z, Delta, g1W, g0W, Q, mu1, mu0, id, family, o
 			}
 			EY0$var.psi <- var(IC.EY0)/n.id
 			EY0$CI <- c(EY0$psi -mult *sqrt(EY0$var.psi), EY0$psi +mult *sqrt(EY0$var.psi))
+			if(family == "binomial") {
+				EY0$CI <- .bound(EY0$CI, c(0,1))
+			}
 			EY0$pvalue <- 2*pnorm(-abs(EY0$psi/sqrt(EY0$var.psi)))	
 		}
 
@@ -1588,6 +1595,9 @@ calcParameters <- function(Y,A, I.Z, Delta, g1W, g0W, Q, mu1, mu0, id, family, o
 			}
 			EY1$var.psi <- var(IC.EY1)/n.id
 			EY1$CI <- c(EY1$psi -mult *sqrt(EY1$var.psi), EY1$psi +mult *sqrt(EY1$var.psi))
+			if(family == "binomial") {
+				EY1$CI <- .bound(EY1$CI, c(0,1))
+			}
 			EY1$pvalue <- 2*pnorm(-abs(EY1$psi/sqrt(EY1$var.psi)))	
 		}
 				
@@ -1599,6 +1609,9 @@ calcParameters <- function(Y,A, I.Z, Delta, g1W, g0W, Q, mu1, mu0, id, family, o
 			}
 			ATE$var.psi <- var(IC.ATE)/n.id
 			ATE$CI <- c(ATE$psi -mult *sqrt(ATE$var.psi), ATE$psi +mult *sqrt(ATE$var.psi))
+			if(family == "binomial") {
+				ATE$CI <- .bound(ATE$CI, c(-1,1))
+			}
 			ATE$pvalue <- 2*pnorm(-abs(ATE$psi/sqrt(ATE$var.psi)))	
 		}	
 		if(family=="binomial"){	
@@ -1615,6 +1628,7 @@ calcParameters <- function(Y,A, I.Z, Delta, g1W, g0W, Q, mu1, mu0, id, family, o
 				var.psi.logRR <- var(IC.logRR)/n.id
 				RR$psi <- mu1/mu0
 				RR$CI  <- c(exp(log(RR$psi) -mult *sqrt(var.psi.logRR)), exp(log(RR$psi) +mult *sqrt(var.psi.logRR)))
+				RR$CI <- .bound(RR$CI, c(0, Inf))
 				RR$pvalue <- 2*pnorm(-abs(log(RR$psi)/sqrt(var.psi.logRR)))
 				RR$var.log.psi <- var.psi.logRR
 
@@ -1625,6 +1639,7 @@ calcParameters <- function(Y,A, I.Z, Delta, g1W, g0W, Q, mu1, mu0, id, family, o
 				}
 				var.psi.logOR <- var(IC.logOR)/n.id
 				OR$CI  <- c(exp(log(OR$psi) -mult *sqrt(var.psi.logOR)), exp(log(OR$psi) +mult *sqrt(var.psi.logOR)))
+				OR$CI <- .bound(OR$CI, c(0, Inf))
 				OR$pvalue <- 2*pnorm(-abs(log(OR$psi)/sqrt(var.psi.logOR)))
 				OR$var.log.psi <- var.psi.logOR
 			}
@@ -1636,6 +1651,7 @@ calcParameters <- function(Y,A, I.Z, Delta, g1W, g0W, Q, mu1, mu0, id, family, o
 	}
 	return(list(EY0 = EY0, EY1=EY1, ATE=ATE, RR=RR, OR=OR, IC= IC, alpha.sig = alpha.sig))
 }
+
 
 #-------------------------------tmle----------------------------------------
 # estimate marginal treatment effect for binary point treatment
@@ -1679,6 +1695,8 @@ calcParameters <- function(Y,A, I.Z, Delta, g1W, g0W, Q, mu1, mu0, id, family, o
 # alpha.sig - significance level, e.g., 0.05 for 95% CIs
 # B = 1 for IC-based inference only, # bootstrap samples to also obtain bootstrap variance estimate and 
 #	quantile-based CIs.
+# evalATT - flag for whether to calculate ATT and ATC. If you don't need these parameters, it's 
+#	faster to set this flag to FALSE when running the targeted bootstrap.
 #-------------------------------------------------------------------------------
 tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),  
 				Q=NULL, Q.Z1=NULL, Qform=NULL, Qbounds=NULL, 
@@ -1690,8 +1708,8 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 				g.Delta.SL.library = c("SL.glm", "tmle.SL.dbarts.k.5", "SL.gam"),
 				family="gaussian", fluctuation="logistic", 
 				alpha  = 0.9995, id=1:length(Y), V.Q = 10, V.g = 10, V.Delta = 10, V.Z=10, verbose=FALSE, Q.discreteSL=FALSE, 
-				g.discreteSL = FALSE, g.Delta.discreteSL=FALSE, prescreenW.g = TRUE, min.retain = 5, target.gwt =TRUE,
-				automate = FALSE, obsWeights = NULL, alpha.sig = 0.05, B = 1) {
+				g.discreteSL = FALSE, g.Delta.discreteSL=FALSE, prescreenW.g = TRUE, min.retain = NULL, target.gwt = FALSE,
+				automate = FALSE, obsWeights = NULL, alpha.sig = 0.05, B = 1, evalATT = TRUE) {
 	# Initializations
 	psi.tmle <- varIC <- CI <- pvalue <- NA
 	colnames(W) <- .setColnames(colnames(W), NCOL(W), "W")
@@ -1733,6 +1751,12 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 	
 	if(is.null(prescreenW.g)) {
 		prescreenW.g <- FALSE
+	} else {		
+		if(length(unique(A)) > 1) {
+			n.effectiveG <-min(c(table(A)*5, n))
+		} else {
+			n.effectiveG <-min(c(table(Delta)*5, n))
+		}
 	}
 	# Set up default values for "automate" mode
 	if (automate){
@@ -1750,13 +1774,33 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 		V.Q <- .setV(n.effective)
 		V.g <- .setV(min(c(table(A)*5, n)))
 		V.Delta <- .setV(min(c(table(Delta)*5, n)))
-		prescreenW.g <- ncol(W) >= n.effective/5
+		prescreenW.g <- ncol(W) >= ceiling(n.effectiveG/4)
+	
 	}
-		
+	 if  (is.null(min.retain)){
+		min.retain <- min(ceiling(n.effectiveG / 20), NCOL(W))
+	}
+			
 	if(!.verifyArgs(Y,Z,A,W,Delta, Qform, gform, g.Zform, g.Deltaform, obsWeights)){
 		stop()
 	}
-   
+	
+	# convert formulas to strings to avoid binding issues later
+	if (!(is.null(Qform)) && inherits(Qform, "formula")){
+			Qform <- paste(Qform[2],Qform[3],sep='~')
+	}
+	
+	if (!(is.null(gform)) && inherits(gform, "formula")){
+			gform <- paste(gform[2],gform[3],sep='~')
+	}
+	
+	if (!(is.null(g.Deltaform)) && inherits(g.Deltaform, "formula")){
+			g.Deltaform <- paste(g.Deltaform[2],g.Deltaform[3],sep='~')
+	}
+	if (!(is.null(g.Zform)) && inherits(g.Zform, "formula")){
+			g.Zform <- paste(g.Zform[2],g.Zform[3],sep='~')
+	}
+
  	maptoYstar <- fluctuation=="logistic"
  		    	
    	if(!is.null(Z) & !is.null(pZ1)){
@@ -1807,19 +1851,25 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 	}
 	# # if prescreenW.g, keep all the variables in the gform, and keep a minimum of 2 variables.
 	# pre-screening won't work for factors.
-	prescreenW.g <- prescreenW.g & is.null(gform)  # don't prescreen if variables are already in a specified regression model
+	prescreenW.g <- prescreenW.g & is.null(gform) & is.null(g.Deltaform) & is.null(g.Zform)  # don't prescreen if variables are already in a specified regression model
 	if((NCOL(W) < min.retain) | !prescreenW.g ) {
-		retain.W <- 1:NCOL(W)
+		retainW <- 1:NCOL(W)
 	} else {	 
 		if ((identical(family, gaussian) | identical(family, "gaussian")) & Q$family == "binomial") {
 				Q.offset <-  plogis(Q$Q[,"QAW"])
 		} else {
 				Q.offset <- Q$Q[,"QAW"]
 		}	
-		retain.W <- .prescreenW.g(stage1$Ystar, A, as.matrix(W), Delta , QAW = Q.offset,  family = family, min.retain, 
+		retainW <- .prescreenW.g(stage1$Ystar, A, as.matrix(W), Delta , QAW = Q.offset,  family = family, min.retain, 
 							 obsWeights = obsWeights)
 	}	
- 	g <- suppressWarnings(estimateG(d=data.frame(A,W[,retain.W]), g1W, gform, g.SL.library, id=id, V = V.g, verbose, "treatment mechanism", outcome="A",  discreteSL = g.discreteSL, obsWeights = obsWeights)) 
+	if (is.null(gform)){
+		retainW.A <- retainW
+	} else {
+		retainW.A <- 1:NCOL(W)
+	}
+ 	
+ 	g <- suppressWarnings(estimateG(d=data.frame(A,W[,retainW.A]), g1W, gform, g.SL.library, id=id, V = V.g, verbose, "treatment mechanism", outcome="A",  discreteSL = g.discreteSL, obsWeights = obsWeights)) 
  	g$bound.ATT <- gbound.ATT
  	g$bound <- gbound
  	if(g$type=="try-error"){
@@ -1836,15 +1886,16 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 	 }
 	
   	if(!CDE){
-  		#browser()
   		g.z <- NULL
   		g.z$type="No intermediate variable"
   		g.z$coef=NA
   		# if prescreenW.g, keep all the variables in the g.Deltaform, or keep a minimum of 2 variables. Always keep A.
   		if (!is.null(g.Deltaform)){
-  			retain.W.Delta <- 1:NCOL(W)
-  		}		
-  		g.Delta <- suppressWarnings(estimateG(d=data.frame(Delta, Z=1, A, W[,retain.W]), pDelta1, g.Deltaform, 
+  			retainW.Delta <- 1:NCOL(W)
+  		}	else {
+  			retainW.Delta <- retainW
+  		}
+  		g.Delta <- suppressWarnings(estimateG(d=data.frame(Delta, Z=1, A, W[,retainW.Delta]), pDelta1, g.Deltaform, 
  	 		SL.library = g.Delta.SL.library, id=id, V = V.Delta, verbose = verbose, "missingness mechanism", outcome="D",  
  	 		discreteSL= g.Delta.discreteSL, obsWeights = obsWeights)) 
  		g1W.total <- .bound(g$g1W*g.Delta$g1W[,"Z0A1"], g$bound)
@@ -1857,55 +1908,57 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
   		if(length(unique(A)) > 1){
         	depsilon <-  0.001
         	Q.ATT <- plogis(Q$Q)  
-        }
-
+		}
 		# Now trim / res-estimate G for ATT and ATC
-		if (length(unique(A)) > 1 ) {
+		if (length(unique(A)) > 1 & evalATT ) {
   	   			# trim controls outside level of support & refit
    	   			minPS.treated <- min((g$g1W)[A == 1])
    	   			ATT.rows <-  (1:n)[g$g1W >= minPS.treated]
-   	   			
-   	   			# now re-estimateG among the treated only
-   	   			# if 10% or fewer were dropped just re-evaluate the intercept, otherwise re-fit g
-   	   			# get predictions out on all observations so that row numbers will be consistent
-   	   			# when bootstrapping
-   	   			if (sum(1-A[ATT.rows]) >= 0.9*sum(1-A)){
-   	   				# re-do the intercept
-   	   				m.ATT <- glm(A[ATT.rows] ~ 1 + offset(qlogis(g$g1W[ATT.rows])), family = "binomial")
-  					g.ATT <- plogis(coef(m.ATT) + qlogis(g$g1W))
-   	   			} else {
-					g.ATT <- suppressWarnings(estimateG(d=data.frame(A,g$g1W, W[,retain.W])[ATT.rows,], g1W = NULL, gform, 
-					g.SL.library, id=id[ATT.rows], V = V.g, verbose, "treatment mechanism - ATT", outcome="A", 
-					newdata = data.frame(A,g$g1W, W[,retain.W]),
-					discreteSL = g.discreteSL, obsWeights = obsWeights[ATT.rows]))$g1W 
-				}
-				
-			# for ATC trim treated outside level of support
+		
+   	   			# for ATC trim treated outside level of support
 	        	maxPS.ctl <- max((g$g1W)[A == 0 ])
    	   			ATC.rows <-  (1:n)[g$g1W <= maxPS.ctl]
    	   			
-   	   			# now re-estimateG among the treated only
-   	   			# if 10% or fewer were dropped just re-evaluate the intercept, otherwise re-fit g
-   	   			if (sum(A[ATC.rows]) >= 0.9*sum(A)){
-   	   				# re-do the intercept
-   	   				m.ATC <- glm(A[ATC.rows] ~ 1 + offset(qlogis(g$g1W[ATC.rows])), family = "binomial")
-  					g.ATC <- plogis(coef(m.ATC) + qlogis(g$g1W))
-   	   			} else {
-					g.ATC <- suppressWarnings(estimateG(d=data.frame(A,g$g1W, W[,retain.W])[ATC.rows,], g1W = NULL, gform, 
-						g.SL.library, id=id[ATC.rows], V = V.g, verbose, "treatment mechanism - ATC", outcome="A",  
-						newdata = data.frame(A,g$g1W, W[,retain.W]),
-						discreteSL = g.discreteSL, obsWeights = obsWeights[ATC.rows]))$g1W
-  				}
+   	   			subsetObs <- 	sum(1-A[ATT.rows]) > 10 & sum(A[ATC.rows]) > 10
+   	   			if (subsetObs){
+	   	   			# now re-estimateG among the treated only
+	   	   			# if 10% or fewer were dropped just re-evaluate the intercept, otherwise re-fit g
+	   	   			# get predictions out on all observations so that row numbers will be consistent
+	   	   			# when bootstrapping
+	   	   			if (sum(1-A[ATT.rows]) >= 0.9*sum(1-A)){
+	   	   				# re-do the intercept
+	   	   				m.ATT <- glm(A[ATT.rows] ~ 1 + offset(qlogis(g$g1W[ATT.rows])), family = "binomial")
+	  					g.ATT <- plogis(coef(m.ATT) + qlogis(g$g1W))
+	   	   			} else {
+						g.ATT <- suppressWarnings(estimateG(d=data.frame(A,g$g1W, W[,retainW.A])[ATT.rows,], g1W = NULL, gform, 
+						g.SL.library, id=id[ATT.rows], V = V.g, verbose, "treatment mechanism - ATT", outcome="A", 
+						newdata = data.frame(A,g$g1W, W[,retainW.A]),
+						discreteSL = g.discreteSL, obsWeights = obsWeights[ATT.rows]))$g1W 
+					}
+	   	   			# now re-estimateG among the treated only
+	   	   			# if 10% or fewer were dropped just re-evaluate the intercept, otherwise re-fit g
+	   	   			if (sum(A[ATC.rows]) >= 0.9*sum(A)){
+	   	   				# re-do the intercept
+	   	   				m.ATC <- glm(A[ATC.rows] ~ 1 + offset(qlogis(g$g1W[ATC.rows])), family = "binomial")
+	  					g.ATC <- plogis(coef(m.ATC) + qlogis(g$g1W))
+	   	   			} else {
+						g.ATC <- suppressWarnings(estimateG(d=data.frame(A,g$g1W, W[,retainW.A])[ATC.rows,], g1W = NULL, gform, 
+							g.SL.library, id=id[ATC.rows], V = V.g, verbose, "treatment mechanism - ATC", outcome="A",  
+							newdata = data.frame(A,g$g1W, W[,retainW.A]),
+							discreteSL = g.discreteSL, obsWeights = obsWeights[ATC.rows]))$g1W
+	  				}
+	  			} else {
+	  				ATT.rows <- ATC.rows <- 1:n
+	  				g.ATT <- g.ATC <- g$g1W
   			}
-
-		
+		}
 
   		###
   		### do this as part of targeted bootstrap.  Do it once to get the estimate and the IC-based inference
   		# then do it B=10000 times to get the targeted bs CI bounds, and a bootstrap estimate of the variance
   		uid <- unique(id)
 		n.id <- length(uid)
-		if(length(unique(A)) > 1){
+		if(length(unique(A)) > 1 & evalATT){
 			uid.ATT <- unique(id[ATT.rows])
 			n.id.ATT <- length(uid.ATT)
 			uid.ATC <- unique(id[ATC.rows])
@@ -1925,14 +1978,14 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 		  		for (i in b.id){
 		 	 		b.rows <- c(b.rows, which(id == i))
 				} 
-				obsWeights.cur <- obsWeights[b.rows] / n * length(b.rows)
-				if(length(unique(A)) > 1){
+				obsWeights.cur <- obsWeights[b.rows] / sum(obsWeights[b.rows]) * length(b.rows)
+				if(length(unique(A)) > 1 & evalATT){
 					b.id.ATT <- sample(uid.ATT, size = n.id.ATT, replace = TRUE)
 					b.ATT.rows <- NULL
 					for (i in b.id.ATT){
 			 	 		b.ATT.rows <- c(b.ATT.rows, which(id == i))
 					} 
-					obsWeights.curATT <- obsWeights[b.ATT.rows] / length(ATT.rows) * length(b.ATT.rows)
+					obsWeights.curATT <- obsWeights[b.ATT.rows] / sum(obsWeights[b.ATT.rows])  * length(b.ATT.rows)
 					
 					
 					b.id.ATC <- sample(uid.ATC, size = n.id.ATC, replace = TRUE)
@@ -1940,21 +1993,21 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 					for (i in b.id.ATC){
 			 	 		b.ATC.rows <- c(b.ATC.rows, which(id == i))
 					} 
-					obsWeights.curATC <- obsWeights[b.ATC.rows] / length(ATC.rows) * length(b.ATC.rows)
+					obsWeights.curATC <- obsWeights[b.ATC.rows] / sum(obsWeights[b.ATC.rows]) * length(b.ATC.rows)
 				}
 			} else {
 				b.rows <- 1:n
 				obsWeights.cur <- obsWeights
-				b.ATT.rows <-ATT.rows
-				obsWeights.curATT <- obsWeights[ATT.rows] / n * length(ATT.rows)
-				b.ATC.rows <-ATC.rows
-				obsWeights.curATC <- obsWeights[ATC.rows] / n * length(ATC.rows)
+				if(evalATT){
+					b.ATT.rows <-ATT.rows
+					obsWeights.curATT <- obsWeights[ATT.rows] / sum(obsWeights[ATT.rows]) * length(ATT.rows)
+					b.ATC.rows <-ATC.rows
+					obsWeights.curATC <- obsWeights[ATC.rows] / sum(obsWeights[ATC.rows]) * length(ATC.rows)
+				}
 			}
   			keep <- Delta[b.rows] == 1 
 	  		if(target.gwt){
-	  			#wt <- ((A/g1W.total + (1-A)/g0W.total )[b.rows]) * obsWeights.cur 
-
-	  			wt <- ((A/g1W.total + (1-A)/g0W.total )[b.rows]) * obsWeights.cur / length(b.rows) * sum(keep)
+	  			wt <- ((A/g1W.total + (1-A)/g0W.total )[b.rows]) * obsWeights.cur
 	  			H1W <- A[b.rows]
 	  			H0W <- 1-A[b.rows]
 	  		} else {
@@ -1996,8 +2049,8 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
    	   		est.bs[b,"ATE"] <- ifelse(is.null(res$ATE$psi), NA, res$ATE$psi)
    	   		est.bs[b,"logRR"] <- ifelse(is.null(res$RR$log.psi), NA, res$RR$log.psi)
    	   		est.bs[b,"logOR"] <- ifelse(is.null(res$OR$log.psi), NA, res$OR$log.psi)
-   	   		
-			if (length(unique(A)) > 1) {
+   	   		   	   		
+			if (length(unique(A)) > 1 & evalATT) {
    	   		   	   			# adjust intercept for pDelta1
    	   			pDelta1.ATT <- g.Delta$g1W[b.ATT.rows,c("Z0A0", "Z0A1")]
    	   			if(mean(Delta[ATT.rows]) > 0.95){
@@ -2036,16 +2089,16 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
    	   	  }
    	   	} # end bootstrap
    	   	  	   	
-   	    if (length(unique(A)) > 1){  	      	
+   	    if (length(unique(A)) > 1 & evalATT){  	      	
         	if(!(inherits(res.ATT, "try-error"))){
         	 	ATT$psi <- res.ATT$psi * diff(stage1$ab) 
         	 	ATT$converged <- res.ATT$conv
         	 	if(n.id < length(id)){
-        			IC.ATT <- as.vector(by(res.ATT$IC, id, mean)) * diff(stage1$ab) + stage1$ab[1]
+        			IC.ATT <- as.vector(by(res.ATT$IC, id[ATT.rows], mean)) * diff(stage1$ab) + stage1$ab[1]
         		} else {
         			IC.ATT <- res.ATT$IC * diff(stage1$ab) + stage1$ab[1]
 				}
-				ATT$var.psi <- var(IC.ATT)/n.id
+				ATT$var.psi <- var(IC.ATT)/n.id.ATT
 				ATT$CI <- c(ATT$psi -mult *sqrt(ATT$var.psi), ATT$psi +mult *sqrt(ATT$var.psi))
 				ATT$pvalue <- 2*pnorm(-abs(ATT$psi/sqrt(ATT$var.psi)))	
 			}
@@ -2054,11 +2107,11 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
         		ATC$psi <- -res.ATC$psi * diff(stage1$ab) 
         		ATC$converged <- res.ATC$conv
         		if(n.id < length(id)){
-        			IC.ATC <- as.vector(by(res.ATC$IC, id, mean)) * diff(stage1$ab) + stage1$ab[1]
+        			IC.ATC <- as.vector(by(res.ATC$IC, id[ATC.rows], mean)) * diff(stage1$ab) + stage1$ab[1]
         		} else {
         			IC.ATC <- res.ATC$IC * diff(stage1$ab) + stage1$ab[1]
 				}
-				ATC$var.psi <- var(IC.ATC)/n.id
+				ATC$var.psi <- var(IC.ATC)/n.id.ATC
 				ATC$CI <- c(ATC$psi -mult *sqrt(ATC$var.psi), ATC$psi +mult *sqrt(ATC$var.psi))
 				ATC$pvalue <- 2*pnorm(-abs(ATC$psi/sqrt(ATC$var.psi)))	
 			}
@@ -2109,18 +2162,21 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 			   	   	res$OR$bs.CI.onesided.lower = c(-Inf, exp(CI.onesided[2,5]))
 		   	   		res$OR$bs.CI.onesided.upper = c(exp(CI.onesided[1,5]), Inf)
 			   	}
-			   	res$ATT$bs.var <- bs.var[6] 	
-		   	   	res$ATT$bs.CI.twosided = CI.twosided[,6]
-		   	   	res$ATT$bs.CI.onesided.lower = c(-Inf, CI.onesided[2,6])
-		   	   	res$ATT$bs.CI.onesided.upper = c(CI.onesided[1,6], Inf)
-		   	   	
-		   	    res$ATC$bs.var <- bs.var[7] 	
-		   	   	res$ATC$bs.CI.twosided = CI.twosided[,7]
-		   	   	res$ATC$bs.CI.onesided.lower = c(-Inf, CI.onesided[2,7])
-		   	   	res$ATC$bs.CI.onesided.upper = c(CI.onesided[1,7], Inf)
+			   	if(evalATT){
+				   	res$ATT$bs.var <- bs.var[6] 	
+			   	   	res$ATT$bs.CI.twosided = CI.twosided[,6]
+			   	   	res$ATT$bs.CI.onesided.lower = c(-Inf, CI.onesided[2,6])
+			   	   	res$ATT$bs.CI.onesided.upper = c(CI.onesided[1,6], Inf)
+			   	   	
+			   	    res$ATC$bs.var <- bs.var[7] 	
+			   	   	res$ATC$bs.CI.twosided = CI.twosided[,7]
+			   	   	res$ATC$bs.CI.onesided.lower = c(-Inf, CI.onesided[2,7])
+			   	   	res$ATC$bs.CI.onesided.upper = c(CI.onesided[1,7], Inf)
+		   	   	} else {
+		   	   		res$ATT <- res$ATC <- NULL
+		   	   	}
 		   }
 	    # calculate Rsq - complete case
-	  #  browser()
 	    m.rsq <- glm(Y~ 1, family = family)
 	    Yhat <- predict(m.rsq, newdata = data.frame(A),  type = "response")
 	    Q$Rsq  <-  NULL
@@ -2140,14 +2196,19 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 		}
 		Q$Q <- Q$Q[,-1]
   		returnVal <- list(estimates=res, Qinit=Q, g=g, g.Z=g.z, g.Delta=g.Delta, Qstar=Qstar[,-1], 
-  				epsilon=epsilon, gbound = gbound, gbound.ATT = gbound.ATT, W.retained = colnames(W)[retain.W]) 
+  				epsilon=epsilon, gbound = gbound, gbound.ATT = gbound.ATT, W.retained = colnames(W)[retainW]) 
   		class(returnVal) <- "tmle"
   	} else {
   		V.Z <- .setV(min(c(table(Z)*5, n)))
   		returnVal <- vector(mode="list", length=2)
-  		g.z <- suppressWarnings(estimateG(d=data.frame(Z,A,W[,retain.W]), pZ1, g.Zform, g.SL.library, id=id, V = V.Z, 
+  		if(is.null(g.Zform)){
+  			retainW.Z <- retainW
+  		} else {
+  			retainW.Z <- 1:NCOL(W)
+  		}
+  		g.z <- suppressWarnings(estimateG(d=data.frame(Z,A,W[,retainW.Z]), pZ1, g.Zform, g.SL.library, id=id, V = V.Z, 
   					  verbose, "intermediate variable", outcome="Z",  discreteSL= g.discreteSL, obsWeights = obsWeights))
-  		g.Delta <- suppressWarnings(estimateG(d=data.frame(Delta,Z, A, W[,retain.W]), pDelta1, g.Deltaform, 
+  		g.Delta <- suppressWarnings(estimateG(d=data.frame(Delta,Z, A, W[,retainW.Z]), pDelta1, g.Deltaform, 
   								 g.Delta.SL.library,id=id, V=V.Delta, verbose, "missingness mechanism", outcome="D",  
   								 discreteSL= g.Delta.discreteSL, obsWeights = obsWeights)) 
     	ZAD <- cbind(D1Z0A0 = .bound((1-g$g1W)*(1-g.z$g1W[,"A0"])*g.Delta$g1W[,"Z0A0"], gbound),
@@ -2175,7 +2236,7 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 		  		for (i in b.id){
 		 	 		b.rows <- c(b.rows, which(id == i))
 				} 
-				obsWeights.cur <- obsWeights[b.rows] / n * length(b.rows)
+				obsWeights.cur <- obsWeights[b.rows] / sum(obsWeights[b.rows]) * length(b.rows)
 			} else {
 				b.rows <- 1:n
 				obsWeights.cur <- obsWeights
@@ -2230,10 +2291,9 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
    	   		est.bs[b,"logRR"] <- ifelse(is.null(res$RR$log.psi), NA, res$RR$log.psi)
    	   		est.bs[b,"logOR"] <- ifelse(is.null(res$OR$log.psi), NA, res$OR$log.psi)
 		} # end bootstrap
-		#browser()
    	   		 # bs inference
 			  if (B == 1){
-				bs.var <- rep(NA, 4)
+				bs.var <- rep(NA, 5)
 	   	   		CI.twosided <- CI.onesided <- matrix(NA, nrow = 2, ncol = ncol(est.bs))
 	   	   	   } else {
 	   	   		  bs.var <- apply(est.bs, 2, var)
@@ -2270,11 +2330,11 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
 				   	}
 			   }
    	   		Qreturn <- Q   	   		
-   	        Qreturn$Q <- Qinit.return[,-1]
+   	        Qreturn$Q <- Qinit.return[,-1]   	        
  		
    	   		g$bound.ATT <- NULL
    	   		returnVal[[z+1]] <- list(estimates=res, Qinit=Qreturn, g=g, g.Z=g.z, g.Delta=g.Delta, 
-   	   									 Qstar=Qstar[,-1], epsilon=epsilon, gbound = gbound, gbound.ATT = NULL, W.retained = colnames(W)[retain.W])
+   	   									 Qstar=Qstar[,-1], epsilon=epsilon, gbound = gbound, gbound.ATT = NULL, W.retained = colnames(W)[retainW])
   		}
   		class(returnVal[[1]]) <- class(returnVal[[2]]) <- "tmle"
   		class(returnVal) <- "tmle.list"
@@ -2282,7 +2342,7 @@ tmle <- function(Y,A,W, Z=NULL, Delta=rep(1,length(Y)),
   	return(returnVal)
 }
 
-# Last modified April 24, 2024. Susan Gruber, sgruber@TLrevolution.com
+# Last modified August 24, 2025. Susan Gruber, sgruber@TLrevolution.com
 
 #Copyright 2012. The Regents of the University of California (Regents). All Rights Reserved. Permission to use, copy, modify, and distribute this software and its documentation for #educational, research, and not-for-profit purposes, without fee and without a signed licensing agreement, is hereby granted, provided that the above copyright notice, this paragraph and the 
 #following two paragraphs appear in all copies, modifications, and distributions. Contact The Office of Technology Licensing, UC Berkeley, 2150 Shattuck Avenue, Suite 510, Berkeley, CA 94720-1620, (510) 643-7201, for commercial licensing opportunities.
